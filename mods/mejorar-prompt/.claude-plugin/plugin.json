@@ -1,0 +1,1 @@
+{ "name": "mejorar-prompt", "version": "0.1.0", "description": "Botón y /mejorar: reescribe el borrador del prompt con haiku antes de enviarlo", "types": "./types/index.d.ts" }
