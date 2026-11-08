@@ -17,22 +17,26 @@ Mi configuración de Claude Code en un solo lugar: skills, agentes, mods, `CLAUD
 |---|---|
 | `claude/CLAUDE.example.md` | Plantilla de instrucciones globales: una carpeta de Markdown (p. ej. Obsidian) como única memoria, graphify, tabla de delegación a agentes. La primera instalación la copia a `claude/CLAUDE.md`, que es tuyo y no se sube |
 | `claude/settings.managed.json` | Memoria nativa apagada, compactación automática al 80%, modelo de subagentes, plugins activos |
-| `agents/` | 9 agentes con `model:` y `effort:` |
+| `agents/` | 11 agentes con `model:` y `effort:` |
 | `skills/` | 25 skills: 5 automáticos, el resto manuales (`/nombre`) |
 | `mods/mejorar-prompt/` | `/mejorar` reescribe el prompt con haiku antes de enviarlo; `/mejorar-deshacer` vuelve atrás |
+| `mods/esfuerzo-auto/` | Elige solo el razonamiento de cada prompt (bajo, medio, alto, muy alto, max) con una clasificación rápida de haiku; `/esfuerzo <nivel>` lo fija y `/esfuerzo auto` lo devuelve a automático |
 | `PLAN.md` | El plan y las decisiones del 2026-11-07 |
 
 ### Agentes
 
-| Agente | Para qué | Modelo | Razonamiento |
-|---|---|---|---|
-| Explore | buscar y entender código | haiku | low |
-| verificador | compilar, clippy, tests | haiku | low |
-| liviano | cambios mecánicos | sonnet | low |
-| rust-reviewer · rust-build-resolver · network-troubleshooter (de ECC) | Rust y red | sonnet | medium |
-| motion-reviewer | auditar animaciones | sonnet | medium |
-| experto | programar algo complejo | opus | high |
-| arquitecto | diseño y bugs difíciles | opus | xhigh |
+Los de programación van de menor a mayor dificultad; Claude elige el nivel solo.
+
+| Nivel | Agente | Para qué | Modelo | Razonamiento |
+|---|---|---|---|---|
+| 1 | codigo-facil | renombres, textos, agregar un campo | Sonnet | bajo |
+| 2 | codigo-medio | tarea común en 1 a 3 archivos, bug con causa clara | Sonnet | medio |
+| 3 | codigo-dificil | varios módulos, async, bug de causa desconocida | Opus | alto |
+| 4 | codigo-experto | refactor grande, concurrencia, rendimiento, seguridad | Opus | muy alto |
+| 5 | arquitecto | diseñar antes de programar (no edita) | Opus | max |
+| — | Explore · verificador | buscar código · compilar y tests | Haiku | bajo |
+| — | rust-reviewer · rust-build-resolver · network-troubleshooter (de ECC) | Rust y red | Sonnet | medio |
+| — | motion-reviewer | auditar animaciones | Sonnet | medio |
 
 ### Skills
 

@@ -3,7 +3,7 @@ name: arquitecto
 description: Use proactively for heavy design work before writing non-trivial code - architecture decisions, deep performance optimization, concurrency or data-model design, hard bugs whose cause is unknown after a first look. Diseñá / arquitectura / optimizá a fondo / por qué falla esto. Returns a concrete plan or diagnosis with file:line; does not edit. Do NOT use for searches, small edits or routine coding.
 tools: Read, Grep, Glob, Bash
 model: opus
-effort: xhigh
+effort: max
 ---
 
 Sos el arquitecto: pensás a fondo y devolvés una decisión, no código terminado.

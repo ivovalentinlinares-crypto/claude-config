@@ -42,10 +42,19 @@ echo "== skills"
 run mkdir -p "$CLAUDE/skills"
 for d in "$REPO"/skills/*/; do d="${d%/}"; link "$d" "$CLAUDE/skills/$(basename "$d")"; done
 
+echo "== limpiar enlaces rotos al repo (agentes o skills renombrados o borrados)"
+for l in "$CLAUDE"/agents/* "$CLAUDE"/skills/*; do
+  if [[ -L "$l" && ! -e "$l" ]]; then
+    case "$(readlink "$l")" in
+      "$REPO"/*|*/claude-config/*) run rm "$l"; echo "  quitado:  ${l#$CLAUDE/}" ;;
+    esac
+  fi
+done
+
 echo "== settings.json (mezcla, no pisa lo que no administramos)"
 SETTINGS="$CLAUDE/settings.json"
 if ((DRY)); then
-  echo "  [seco] mezclaría claude/settings.managed.json y CLAUDE_CODE_PLUGIN_DIRS=$REPO/mods/mejorar-prompt"
+  echo "  [seco] mezclaría claude/settings.managed.json y CLAUDE_CODE_PLUGIN_DIRS con cada carpeta de mods/"
 else
   mkdir -p "$BACKUP"; [[ -f "$SETTINGS" ]] && cp "$SETTINGS" "$BACKUP/settings.json"
   python3 - "$SETTINGS" "$REPO/claude/settings.managed.json" "$REPO/mods" <<'EOF'

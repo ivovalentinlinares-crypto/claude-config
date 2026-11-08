@@ -12,5 +12,21 @@
     "impeccable@impeccable": true,
     "skill-creator@claude-plugins-official": true,
     "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/modo-solo.sh"
+          }
+        ]
+      }
+    ]
   }
 }

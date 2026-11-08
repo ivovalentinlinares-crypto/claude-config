@@ -1,0 +1,1 @@
+{ "name": "esfuerzo-auto", "version": "0.1.0", "description": "Elige solo el nivel de razonamiento (bajo, medio, alto, muy alto, max) de cada prompt según su complejidad", "types": "./types/index.d.ts" }
