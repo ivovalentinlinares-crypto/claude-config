@@ -1,0 +1,17 @@
+{
+  "_nota": "Traduce el model y effort de cada agente de agents/*.md a un modelo de opencode (proveedor/modelo#variante). Variantes de GLM 5.3 en Novita: none, low, high, max (sin variante = la de fábrica). Flash: low, high, max.",
+  "principal": "novita-ai/zai-org/glm-5.3",
+  "lectura": "novita-ai/zai-org/glm-5.3-flash",
+  "modelos": {
+    "opus": "novita-ai/zai-org/glm-5.3",
+    "sonnet": "novita-ai/zai-org/glm-5.3",
+    "haiku": "novita-ai/zai-org/glm-5.3-flash"
+  },
+  "variantes": {
+    "low": "low",
+    "medium": "",
+    "high": "high",
+    "xhigh": "max",
+    "max": "max"
+  }
+}

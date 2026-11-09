@@ -78,5 +78,10 @@ print("  mods:", ", ".join(os.path.basename(d) for d in dirs))
 EOF
 fi
 
+if command -v opencode >/dev/null && [[ -x "$REPO/install-opencode.sh" ]]; then
+  echo; echo "== opencode"
+  "$REPO/install-opencode.sh" "${1:-}"
+fi
+
 echo
 ((DRY)) && echo "Prueba en seco: no se tocó nada." || echo "Listo. Respaldo en: $BACKUP. Reiniciá Claude Code para que tome todo."
