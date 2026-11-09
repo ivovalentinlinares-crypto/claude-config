@@ -1,0 +1,45 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "novita-ai/zai-org/glm-5.3",
+  "default_agent": "build",
+  "compaction": {
+    "auto": true,
+    "buffer": "20%"
+  },
+  "permissions": [
+    { "action": "read", "resource": "~/Documentos/Obsidian Vault/Credenciales/*", "effect": "deny" },
+    { "action": "edit", "resource": "~/Documentos/Obsidian Vault/Credenciales/*", "effect": "deny" },
+    { "action": "read", "resource": "~/Documentos/Obsidian Vault/Recursos/*", "effect": "ask" },
+    { "action": "skill", "resource": "artifact-emulator", "effect": "deny" },
+    { "action": "skill", "resource": "built-in-browser", "effect": "deny" },
+    { "action": "skill", "resource": "chrome-browser", "effect": "deny" },
+    { "action": "skill", "resource": "computer-use", "effect": "deny" },
+    { "action": "skill", "resource": "docs", "effect": "deny" },
+    { "action": "skill", "resource": "google-workspace", "effect": "deny" },
+    { "action": "skill", "resource": "morning", "effect": "deny" },
+    { "action": "skill", "resource": "import-memory", "effect": "deny" }
+  ],
+  "agents": {
+    "build": {
+      "model": "novita-ai/zai-org/glm-5.3",
+      "permissions": [
+        { "action": "question", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "plan": {
+      "model": "novita-ai/zai-org/glm-5.3#high",
+      "permissions": [
+        { "action": "question", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "general": {
+      "model": "novita-ai/zai-org/glm-5.3"
+    },
+    "title": {
+      "model": "novita-ai/zai-org/glm-5.3-flash#low"
+    },
+    "summary": {
+      "model": "novita-ai/zai-org/glm-5.3-flash#low"
+    }
+  }
+}

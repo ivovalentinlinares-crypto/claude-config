@@ -45,6 +45,23 @@ Los de programación van de menor a mayor dificultad; Claude elige el nivel solo
 
 Para que un skill pase a manual o a automático, agregá o borrá `disable-model-invocation: true` en el encabezado de su `SKILL.md`.
 
+## opencode
+
+`install.sh` también instala el equivalente en opencode (v2) si está instalado; solo opencode: `./install-opencode.sh [--dry-run]`.
+
+| Pieza de Claude Code | En opencode |
+|---|---|
+| `CLAUDE.md` | `opencode/AGENTS.md` (personal, no se sube; sale de `AGENTS.example.md`) enlazado en `~/.config/opencode/AGENTS.md` |
+| `agents/*.md` y los agentes de plugins | se traducen a `~/.config/opencode/agents/` con el modelo de `opencode/modelos.json`; `Explore` pisa el `explore` de fábrica; sin `Edit`/`Write` en `tools:` quedan de solo lectura. Editá el original y volvé a correr el instalador |
+| Modelos | GLM 5.3 por Novita AI para todo; GLM 5.3 Flash para lectura (`explore`, `verificador`, títulos). El `effort` pasa a la variante: low→low, medium→sin variante, high→high, xhigh y max→max. `plan` usa `#high` |
+| Skills | opencode lee `~/.claude/skills` solo y respeta `disable-model-invocation`; los skills de plugins activos se agregan en `skills`. Los de la app de Claude que no sirven fuera de ella (navegador, computer-use, Docs…) se bloquean en `opencode.base.json` |
+| MCP de plugins (context-mode) | `mcp.servers` |
+| Modo auto + hook de modo solo | permisos de fábrica (todo permitido) y `question: deny` en `build` y `plan` |
+| Cerebro (Obsidian) | las mismas reglas en `AGENTS.md`; `Credenciales/` bloqueada y `Recursos/` pregunta por permisos |
+| Compactación al 80% | `compaction.buffer: 20%` |
+
+La API key de Novita no está en el repo: se guarda con `opencode auth login`. Los mods (`esfuerzo-auto`, `mejorar-prompt`) son de Claude Code y no tienen equivalente: en opencode la variante se cambia a mano desde el selector de modelo.
+
 ## Origen y licencias
 
 - Skills de proceso (brainstorming, systematic-debugging, etc.): copiados de [superpowers](https://github.com/obra/superpowers) 7.0.0, MIT. Se quitó el hook que obligaba a usarlos.
