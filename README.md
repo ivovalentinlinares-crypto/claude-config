@@ -60,7 +60,7 @@ Para que un skill pase a manual o a automático, agregá o borrá `disable-model
 | Cerebro (Obsidian) | las mismas reglas en `AGENTS.md`; `Credenciales/` bloqueada y `Recursos/` pregunta por permisos |
 | Compactación al 80% | `compaction.buffer: 20%` |
 
-La API key de Novita no está en el repo: se guarda con `opencode auth login`. Los mods (`esfuerzo-auto`, `mejorar-prompt`) son de Claude Code y no tienen equivalente: en opencode la variante se cambia a mano desde el selector de modelo.
+La API key de Novita no está en el repo: se guarda con `opencode auth login`. `mejorar-prompt` tiene su versión en `opencode/commands/`: `/mejorar <texto>` devuelve el prompt reescrito con GLM 5.3 Flash (agente oculto `mejorador`, sin herramientas) para que lo copies y lo mandes; `/mejorar-y-hacer <texto>` lo ordena y lo ejecuta en el mismo paso. opencode no deja reemplazar el texto del cuadro del prompt, así que no hay botón ni deshacer. `esfuerzo-auto` no tiene equivalente: la variante se cambia a mano desde el selector de modelo.
 
 ## Origen y licencias
 

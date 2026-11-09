@@ -32,6 +32,21 @@ if ! [[ -L "$dst" && "$(readlink "$dst")" == "$REPO/opencode/AGENTS.md" ]]; then
   echo "  enlace:   AGENTS.md"
 fi
 
+echo "== comandos y agentes propios de opencode (enlaces)"
+for sub in commands agents; do
+  run mkdir -p "$OC/$sub"
+  for f in "$REPO/opencode/$sub"/*.md; do
+    [[ -e "$f" ]] || continue
+    d="$OC/$sub/$(basename "$f")"
+    [[ -L "$d" && "$(readlink "$d")" == "$f" ]] && continue
+    if [[ -e "$d" || -L "$d" ]]; then run mkdir -p "$BACKUP/$sub"; run mv "$d" "$BACKUP/$sub/"; echo "  respaldo: $sub/$(basename "$f")"; fi
+    run ln -s "$f" "$d"; echo "  enlace:   $sub/$(basename "$f")"
+  done
+done
+for l in "$OC"/commands/* "$OC"/agents/*; do
+  if [[ -L "$l" && ! -e "$l" && "$(readlink "$l")" == "$REPO"/* ]]; then run rm "$l"; echo "  quitado:  ${l#$OC/}"; fi
+done
+
 echo "== agentes y opencode.json"
 python3 - "$REPO" "$OC" "$CLAUDE" "$BACKUP" "$DRY" <<'EOF'
 import json, os, re, shutil, sys, glob
@@ -148,7 +163,7 @@ for pid in activos:
 
 # Borrar agentes generados antes que ya no existen en el repo.
 for f in glob.glob(os.path.join(oc, "agents", "*.md")):
-    if f not in generados and MARCA in open(f).read():
+    if f not in generados and not os.path.islink(f) and MARCA in open(f).read():
         print(f"  quitado:  agents/{os.path.basename(f)}")
         if not dry:
             os.remove(f)
