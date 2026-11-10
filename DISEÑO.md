@@ -46,9 +46,9 @@ Los porcentajes son de costo: cada token pesa según su precio relativo (lectura
 ## Medir
 
 ```bash
-scripts/medir-tokens.py Consorcio --desde 2026-11-10
+scripts/medir-tokens.py Consorcio --comparar '2026-11-09 23:51'
 ```
 
-Línea de base (hasta el 9 de noviembre): contexto mediano por pedido 288k · subagentes Opus 26,5 % · caché rehecha 11 % del hilo principal · contexto inicial 83k. Si a la semana el contexto mediano no bajó de ~150k, revisar que la ventana se esté aplicando (`/context` en una sesión).
+Separa las sesiones por la hora en que arrancaron (la config nueva se instaló el 9 de noviembre a las 23:51): una sesión abierta antes sigue con la config vieja aunque se use después. Línea de base: contexto mediano por pedido 288k · subagentes Opus 26,5 % · caché rehecha 11 % del hilo principal · contexto inicial 83k. Si a la semana el contexto mediano no bajó de ~150k, revisar que la ventana se esté aplicando (`/context` en una sesión).
 
 **Prueba opcional, después de medir:** una semana de sesiones de rutina con Sonnet 5.5 en el hilo principal y Opus como advisor (`/advisor opus`), y comparar.

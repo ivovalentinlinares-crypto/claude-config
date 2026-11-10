@@ -4,6 +4,7 @@
     scripts/medir-tokens.py                         todos los proyectos
     scripts/medir-tokens.py Consorcio               proyectos cuyo nombre contiene "Consorcio"
     scripts/medir-tokens.py Consorcio --desde 2026-11-10
+    scripts/medir-tokens.py Consorcio --comparar '2026-11-09 23:51'   antes y después del cambio
 
 Cada token se pesa por su precio relativo a la entrada sin caché: lectura de
 caché x0,1, escritura x1,25 (5 min) o x2 (1 h), salida x5. Así los porcentajes
@@ -35,15 +36,87 @@ def pct(lista, q):
     return lista[min(len(lista) - 1, int(len(lista) * q))] if lista else 0
 
 
+def comparar(raices, corte):
+    """Antes y después de `corte`, por la fecha en que ARRANCÓ cada sesión: una sesión
+    abierta antes del cambio sigue con la config vieja aunque siga en uso después."""
+    inicio_sesion = {}
+    for raiz in raices:
+        for p in glob.glob(raiz + "/*.jsonl"):
+            for linea in open(p, errors="ignore"):
+                t = ts(json.loads(linea).get("timestamp") or "") if '"timestamp"' in linea else None
+                if t:  # los transcripts guardan UTC: comparar en hora local
+                    inicio_sesion[os.path.basename(p)[:-6]] = datetime.datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M")
+                    break
+    g = {k: dict(peso=0.0, sub_opus=0.0, ctx=[], ini=[], reh=0.0, ses=set(), prompts=0) for k in ("antes", "después")}
+    vistos = set()
+    for raiz in raices:
+        for r, _, fs in os.walk(raiz):
+            for f in fs:
+                if not f.endswith(".jsonl"):
+                    continue
+                p = os.path.join(r, f); sub = r != raiz
+                sid = f[:-6] if not sub else os.path.relpath(p, raiz).split(os.sep)[0]
+                if sid not in inicio_sesion:
+                    continue
+                d_ = g["antes" if inicio_sesion[sid] < corte else "después"]
+                primero, t_prev = True, None
+                for linea in open(p, errors="ignore"):
+                    try:
+                        o = json.loads(linea)
+                    except ValueError:
+                        continue
+                    if not sub and o.get("type") == "user" and isinstance((o.get("message") or {}).get("content"), str):
+                        d_["prompts"] += 1
+                    m = o.get("message") or {}
+                    mid = m.get("id") or o.get("requestId")
+                    if o.get("type") != "assistant" or not mid or mid in vistos or m.get("model") == "<synthetic>":
+                        continue
+                    vistos.add(mid)
+                    u = uso(m.get("usage") or {}); x = sum(u[k] * PESO[k] for k in PESO)
+                    ctx = u["inp"] + u["cw5"] + u["cw1h"] + u["cr"]
+                    d_["peso"] += x; d_["ses"].add(sid)
+                    if sub:
+                        if "opus" in (m.get("model") or ""):
+                            d_["sub_opus"] += x
+                        continue
+                    d_["ctx"].append(ctx)
+                    if primero:
+                        d_["ini"].append(ctx); primero = False
+                    t = ts(o.get("timestamp") or "")
+                    if t and t_prev and t - t_prev > 3600 and ctx > 100e3 and u["cr"] < ctx / 2:
+                        d_["reh"] += x
+                    t_prev = t or t_prev
+    filas = [
+        ("sesiones", lambda d: f"{len(d['ses'])}"),
+        ("peso por prompt (M)", lambda d: f"{d['peso'] / max(d['prompts'], 1) / 1e6:.2f}"),
+        ("contexto mediano", lambda d: f"{pct(sorted(d['ctx']), .5) / 1e3:.0f}k"),
+        ("contexto p90", lambda d: f"{pct(sorted(d['ctx']), .9) / 1e3:.0f}k"),
+        ("contexto máximo", lambda d: f"{max(d['ctx'], default=0) / 1e3:.0f}k"),
+        ("contexto inicial (mediana)", lambda d: f"{pct(sorted(d['ini']), .5) / 1e3:.0f}k"),
+        ("subagentes Opus", lambda d: f"{100 * d['sub_opus'] / max(d['peso'], 1):.1f} %"),
+        ("caché rehecha tras >1 h", lambda d: f"{100 * d['reh'] / max(d['peso'], 1):.1f} %"),
+    ]
+    print(f"Sesiones que arrancaron antes y desde el {corte}\n")
+    print(f"   {'':28}{'antes':>10}{'después':>10}")
+    for nombre, fn in filas:
+        print(f"   {nombre:28}{fn(g['antes']):>10}{fn(g['después']) if g['después']['ctx'] else '—':>10}")
+    if len(g["después"]["ses"]) < 5:
+        print(f"\nTodavía hay {len(g['después']['ses'])} sesiones nuevas: con menos de ~5 la comparación no es confiable.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("proyecto", nargs="?", default="", help="parte del nombre de la carpeta del proyecto")
     ap.add_argument("--desde", default="", help="AAAA-MM-DD, incluido")
     ap.add_argument("--hasta", default="9999", help="AAAA-MM-DD, incluido")
+    ap.add_argument("--comparar", metavar="'AAAA-MM-DD [HH:MM]'", help="antes y después de ese momento (hora local), por el arranque de cada sesión")
     a = ap.parse_args()
 
     base = os.path.expanduser("~/.claude/projects")
     raices = [d for d in glob.glob(base + "/*") if a.proyecto in os.path.basename(d)]
+    if a.comparar:
+        comparar(raices, a.comparar)
+        return
     vistos = set()
     tot = collections.Counter()           # peso por tipo de token
     lado = collections.Counter()          # peso por (lado, modelo)

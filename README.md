@@ -22,7 +22,7 @@ Mi configuración de Claude Code en un solo lugar: agentes, hooks, skills, mods,
 | `skills/` | 25 skills: 3 automáticos, el resto manuales (`/nombre`) |
 | `mods/esfuerzo-auto/` | Elige solo el razonamiento de cada prompt (bajo, medio, alto, muy alto, max) con una clasificación rápida de haiku; `/esfuerzo <nivel>` lo fija y `/esfuerzo auto` lo devuelve a automático |
 | `mods/mejorar-prompt/` | `/mejorar` reescribe el prompt con haiku antes de enviarlo; `/mejorar-deshacer` vuelve atrás |
-| `scripts/medir-tokens.py` | Mide en qué se van los tokens leyendo los transcripts: `scripts/medir-tokens.py Consorcio --desde 2026-11-10` |
+| `scripts/medir-tokens.py` | Mide en qué se van los tokens leyendo los transcripts: `scripts/medir-tokens.py Consorcio --comparar '2026-11-09 23:51'` |
 
 ### Settings
 
