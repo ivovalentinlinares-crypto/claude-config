@@ -41,6 +41,8 @@ while IFS= read -r parte; do
   gdir="$dir"; j=$((i+1))
   while [[ $j -lt ${#pal[@]} && "${pal[$j]}" == -* ]]; do
     if [[ "${pal[$j]}" == "-C" ]]; then g="${pal[$((j+1))]:-}"; g="${g/#\~/$HOME}"; g="${g//\"/}"; [[ "$g" == /* ]] && gdir="$g" || gdir="$dir/$g"; ((j++)); fi
+    # Opciones globales que llevan su valor aparte: saltear también el valor.
+    case "${pal[$j]}" in -c|--git-dir|--work-tree|--namespace|--exec-path) ((j++)) ;; esac
     ((j++))
   done
   sub="${pal[$j]:-}"; resto=("${pal[@]:$((j+1))}")
