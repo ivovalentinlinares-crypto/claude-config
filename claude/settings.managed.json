@@ -10,7 +10,7 @@
     "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5"
   },
   "enabledPlugins": {
-    "context-mode@context-mode": false,
+    "context-mode@context-mode": null,
     "skill-creator@claude-plugins-official": false,
     "impeccable@impeccable": true,
     "rust-analyzer-lsp@claude-plugins-official": true
