@@ -10,20 +10,23 @@ La única memoria de largo plazo es `MEMORIA/`. No uses la memoria nativa (`MEMO
 # Grafo antes de leer (graphify, opcional)
 Antes de explorar un proyecto, buscá `.graphify/graph.json` en su raíz. Si existe, consultalo primero (`graphify query "<pregunta>"`) y abrí solo los archivos que señale. Si no existe y el proyecto es grande (más de ~50 archivos de código), crealo con `/graphify <ruta>`. En proyectos chicos, leelos directo. Nunca incluyas `.env` ni claves en el grafo.
 
-# Delegación por dificultad
-Elegí el agente sin preguntar, según cuánto hay que pensar:
+# Delegación y contexto
+Lo que más gasta es el tamaño de la conversación: cada pedido la reenvía entera. Elegí el agente sin preguntar:
 
-| Nivel | Agente | Modelo | Razonamiento | Cuándo |
-|---|---|---|---|---|
-| 1 | `codigo-facil` | Sonnet | bajo | renombres, textos, agregar un campo, un error de compilación obvio |
-| 2 | `codigo-medio` | Sonnet | medio | tarea común en 1 a 3 archivos, bug con causa clara, tests |
-| 3 | `codigo-dificil` | Opus | alto | varios módulos, async, bug de causa desconocida, ejecutar el plan de `arquitecto` |
-| 4 | `codigo-experto` | Opus | muy alto | refactor grande, concurrencia, rendimiento, seguridad, migraciones, algo que ya falló |
-| 5 | `arquitecto` | Opus | max | diseñar antes de programar algo grande o crítico (no edita) |
+| Agente | Modelo | Cuándo |
+|---|---|---|
+| `codigo-medio` | Sonnet, medio | tarea común en 1 a 3 archivos, bug con causa clara, tests, renombres, un error de compilación |
+| `codigo-dificil` | Opus, alto | varios módulos, async, bug de causa desconocida, ejecutar el plan de `arquitecto` |
+| `codigo-experto` | Opus, muy alto | refactor grande, concurrencia, seguridad, migraciones, algo que ya falló |
+| `arquitecto` | Opus, max | diseñar antes de programar algo grande o crítico (no edita) |
 
 - Lo que se resuelve en pocos pasos (una edición, leer 1 o 2 archivos, un comando) hacelo directo: un subagente tarda en arrancar.
-- Buscar o entender código en más de ~5 archivos: `Explore`. Compilar, clippy o tests largos: `verificador`; nunca pegues la salida completa.
-- Rust: revisar con `rust-reviewer`; errores de `cargo build` o del borrow checker con `rust-build-resolver`.
-- Red, DNS, rutas o servers que no se ven: `network-troubleshooter` (solo lectura).
-- El razonamiento del hilo principal lo elige solo el mod `esfuerzo-auto` en cada prompt; el usuario puede fijarlo con `/esfuerzo`.
+- Delegá lo que va a leer mucho que después no hace falta acá: buscar o entender código en más de ~5 archivos va a `Explore`; una implementación larga, al agente de su nivel. El brief lleva rutas, qué está hecho y qué es terminar; pedí un informe corto.
+- Rust: revisar con `rust-reviewer`. Red, DNS, rutas o servers que no se ven: `network-troubleshooter` (solo lectura).
+- Leé fragmentos: Read con `offset`/`limit`, `rg -n`, o el LSP (rust-analyzer) para definiciones y referencias. No hagas `cat` ni `sed -n` de archivos enteros, ni vuelvas a leer lo que ya está en la conversación.
+- Filtrá las salidas largas (builds, tests, logs) antes de que entren: `| tail -40`, `rg -m 20 error`.
+- Si un proyecto tiene un hook `Stop` que compila al terminar y te devuelve errores, arreglalos antes de cerrar.
+- La conversación compacta sola a los 200k tokens y el hook de compactación conserva pedidos, decisiones y pendientes. Lo que tiene que sobrevivir a la sesión va al `PROGRESO.md` del proyecto.
+- El razonamiento del hilo principal lo elige solo el mod `esfuerzo-auto` en cada prompt; el usuario puede fijarlo con `/esfuerzo`. No cambies de modelo a mitad de sesión: la caché es por modelo y se rehace entera.
 - Los skills `ecc-*` y la mayoría de los demás son manuales (`/nombre`): no los busques ni los sugieras salvo que el usuario los nombre.
+

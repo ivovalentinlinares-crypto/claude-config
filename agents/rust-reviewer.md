@@ -4,6 +4,8 @@ description: Expert Rust code reviewer specializing in ownership, lifetimes, err
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
+maxTurns: 60
+autoCompactWindow: 150000
 ---
 
 ## Prompt Defense Baseline

@@ -5,7 +5,7 @@
 #   ./install.sh --dry-run  muestra qué haría, sin tocar nada
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CLAUDE="${CLAUDE_HOME:-$HOME/.claude}"
 DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 BACKUP="$CLAUDE/backups/claude-config-$(date +%Y%m%d-%H%M%S)"
@@ -42,8 +42,12 @@ echo "== skills"
 run mkdir -p "$CLAUDE/skills"
 for d in "$REPO"/skills/*/; do d="${d%/}"; link "$d" "$CLAUDE/skills/$(basename "$d")"; done
 
-echo "== limpiar enlaces rotos al repo (agentes o skills renombrados o borrados)"
-for l in "$CLAUDE"/agents/* "$CLAUDE"/skills/*; do
+echo "== hooks"
+run mkdir -p "$CLAUDE/hooks"
+for f in "$REPO"/hooks/*.sh; do link "$f" "$CLAUDE/hooks/$(basename "$f")"; done
+
+echo "== limpiar enlaces rotos al repo (agentes, skills o hooks renombrados o borrados)"
+for l in "$CLAUDE"/agents/* "$CLAUDE"/skills/* "$CLAUDE"/hooks/*; do
   if [[ -L "$l" && ! -e "$l" ]]; then
     case "$(readlink "$l")" in
       "$REPO"/*|*/claude-config/*) run rm "$l"; echo "  quitado:  ${l#$CLAUDE/}" ;;
@@ -62,9 +66,20 @@ import json, os, sys
 path, managed_path, mods = sys.argv[1:]
 cur = json.load(open(path)) if os.path.exists(path) else {}
 managed = json.load(open(managed_path))
+# Un nivel de mezcla: las claves de un dict administrado (env, hooks, …) pisan
+# las de settings.json una por una; null borra. Las que empiezan con _ son notas.
 for k, v in managed.items():
-    if isinstance(v, dict):
-        cur.setdefault(k, {}).update(v)
+    if k.startswith("_"):
+        continue
+    if v is None:
+        cur.pop(k, None)
+    elif isinstance(v, dict):
+        dst = cur.setdefault(k, {})
+        for kk, vv in v.items():
+            if vv is None:
+                dst.pop(kk, None)
+            else:
+                dst[kk] = vv
     else:
         cur[k] = v
 dirs = sorted(os.path.join(mods, d) for d in os.listdir(mods)

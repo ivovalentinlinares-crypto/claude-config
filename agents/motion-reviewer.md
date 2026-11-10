@@ -3,6 +3,8 @@ name: motion-reviewer
 description: Audits animation performance across a directory or project and reports MotionScore tiers. Use when the scope is more than one file — discovery pulls in a lot of source, and each area can be audited independently.
 model: sonnet
 effort: medium
+maxTurns: 60
+autoCompactWindow: 150000
 ---
 
 # MotionScore reviewer
