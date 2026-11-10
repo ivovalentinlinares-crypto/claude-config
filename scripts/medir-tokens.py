@@ -11,7 +11,7 @@ son de costo, no de cantidad. Los números para comparar antes y después del
 diseño de DISEÑO.md: contexto mediano por pedido, peso de los subagentes Opus,
 caché rehecha y contexto inicial.
 """
-import argparse, collections, datetime, glob, json, os, re
+import argparse, collections, datetime, glob, json, os, re, shlex
 
 PESO = dict(inp=1, cw5=1.25, cw1h=2, cr=0.1, out=5)
 
@@ -90,7 +90,13 @@ def main():
                                 herr[nombre] += largo / 4; herr_n[nombre] += 1
                                 if nombre == "Bash" and comando:
                                     cmd = re.sub(r"^(cd [^&;]+(&&|;)\s*)+", "", comando.strip())
-                                    pal = [w for w in cmd.split() if not re.match(r"^[A-Z_][A-Z0-9_]*=", w)]
+                                    try:
+                                        pal = shlex.split(cmd.split("\n")[0])
+                                    except ValueError:
+                                        pal = cmd.split()
+                                    pal = [w for w in pal if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w)]
+                                    while pal and pal[0] in (";", "&&"):
+                                        pal = pal[1:]
                                     clave = " ".join(pal[:2]) if pal and pal[0] in ("git", "cargo", "npm", "docker") else (pal[0] if pal else "")
                                     bash[clave] += largo / 4
                     if o.get("type") != "assistant":
