@@ -1,30 +1,63 @@
 {
-  "model": "opusplan",
-  "autoMemoryEnabled": false,
+  "_nota": "install.sh mezcla estas claves en ~/.claude/settings.json. Un valor null borra la clave (también dentro de env, enabledPlugins, etc.). Las claves que empiezan con _ no se copian. Por qué cada valor: DISEÑO.md.",
+  "model": "opus",
   "autoCompactEnabled": true,
+  "autoCompactWindow": 200000,
+  "autoMemoryEnabled": false,
   "env": {
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": null,
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": null,
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5"
   },
   "enabledPlugins": {
-    "context-mode@context-mode": true,
+    "context-mode@context-mode": null,
+    "skill-creator@claude-plugins-official": false,
     "impeccable@impeccable": true,
-    "skill-creator@claude-plugins-official": true,
     "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "skillOverrides": {
+    "anthropic-skills:docx": "name-only",
+    "anthropic-skills:pptx": "name-only",
+    "anthropic-skills:xlsx": "name-only",
+    "anthropic-skills:pdf": "name-only",
+    "anthropic-skills:morning": "name-only",
+    "anthropic-skills:import-memory": "name-only",
+    "anthropic-skills:consolidate-memory": "name-only",
+    "anthropic-skills:setup-writing-style": "name-only",
+    "anthropic-skills:setup-claude": "name-only",
+    "anthropic-skills:google-workspace": "name-only",
+    "anthropic-skills:explain-usage": "name-only",
+    "keybindings-help": "name-only"
   },
   "permissions": {
     "defaultMode": "auto"
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/estado-sesion.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/antes-de-compactar.sh", "timeout": 10 }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "AskUserQuestion",
         "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/modo-solo.sh"
-          }
+          { "type": "command", "command": "~/.claude/hooks/modo-solo.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/proteger-main.sh", "timeout": 10 }
         ]
       }
     ]

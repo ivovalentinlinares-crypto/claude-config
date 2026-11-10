@@ -13,17 +13,17 @@ Antes de explorar un proyecto, buscá `.graphify/graph.json` en su raíz. Si exi
 # Delegación por dificultad
 Elegí el subagente sin preguntar, según cuánto hay que pensar (modelos en `opencode/modelos.json`):
 
-| Nivel | Agente | Razonamiento | Cuándo |
-|---|---|---|---|
-| 1 | `codigo-facil` | bajo | renombres, textos, agregar un campo, un error de compilación obvio |
-| 2 | `codigo-medio` | normal | tarea común en 1 a 3 archivos, bug con causa clara, tests |
-| 3 | `codigo-dificil` | alto | varios módulos, async, bug de causa desconocida, ejecutar el plan de `arquitecto` |
-| 4 | `codigo-experto` | max | refactor grande, concurrencia, rendimiento, seguridad, migraciones, algo que ya falló |
-| 5 | `arquitecto` | max | diseñar antes de programar algo grande o crítico (no edita) |
+| Agente | Razonamiento | Cuándo |
+|---|---|---|
+| `codigo-medio` | normal | tarea común en 1 a 3 archivos, bug con causa clara, tests, renombres, un error de compilación |
+| `codigo-dificil` | alto | varios módulos, async, bug de causa desconocida, ejecutar el plan de `arquitecto` |
+| `codigo-experto` | max | refactor grande, concurrencia, seguridad, migraciones, algo que ya falló |
+| `arquitecto` | max | diseñar antes de programar algo grande o crítico (no edita) |
 
 - Lo que se resuelve en pocos pasos hacelo directo: un subagente tarda en arrancar.
-- Buscar o entender código en más de ~5 archivos: `explore`. Compilar, clippy o tests largos: `verificador`; nunca pegues la salida completa.
-- Rust: revisar con `rust-reviewer`; errores de `cargo build` con `rust-build-resolver`. Red: `network-troubleshooter`.
+- Buscar o entender código en más de ~5 archivos: `explore`. Pedí informes cortos.
+- Leé fragmentos, no archivos enteros, y filtrá las salidas largas (builds, tests, logs) antes de que entren a la conversación.
+- Rust: revisar con `rust-reviewer`. Red, DNS, rutas o servers que no se ven: `network-troubleshooter`.
 - Los skills `ecc-*` y la mayoría de los demás son manuales: no los cargues ni los sugieras salvo que el usuario los nombre.
 
 # Modo solo (trabajar sin el usuario)

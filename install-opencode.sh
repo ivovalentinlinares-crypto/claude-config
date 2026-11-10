@@ -184,6 +184,17 @@ if skills:
     cur["skills"] = skills
 if servidores:
     cur.setdefault("mcp", {}).setdefault("servers", {}).update(servidores)
+# Sacar los MCP de plugins que el repo apagó (por ejemplo context-mode).
+for pid, on in managed.get("enabledPlugins", {}).items():
+    raiz = ruta_plugin(pid) if not on else None
+    if not raiz:
+        continue
+    for cand in (os.path.join(raiz, ".mcp.json"), os.path.join(raiz, ".claude-plugin", "plugin.json")):
+        if os.path.isfile(cand):
+            d = json.load(open(cand))
+            for nombre in (d.get("mcpServers", {}) if "mcpServers" in d or cand.endswith("plugin.json") else d):
+                if nombre not in servidores and cur.get("mcp", {}).get("servers", {}).pop(nombre, None) is not None:
+                    print(f"  MCP quitado: {nombre} (plugin apagado)")
 print("  skills de plugins:", ", ".join(con_skills) or "ninguno")
 print("  MCP:", ", ".join(servidores) or "ninguno")
 if dry:

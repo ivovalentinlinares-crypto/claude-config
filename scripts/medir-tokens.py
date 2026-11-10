@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Mide en qué se van los tokens de Claude Code, leyendo los transcripts locales.
+
+    scripts/medir-tokens.py                         todos los proyectos
+    scripts/medir-tokens.py Consorcio               proyectos cuyo nombre contiene "Consorcio"
+    scripts/medir-tokens.py Consorcio --desde 2026-11-10
+    scripts/medir-tokens.py Consorcio --comparar '2026-11-09 23:51'   antes y después del cambio
+
+Cada token se pesa por su precio relativo a la entrada sin caché: lectura de
+caché x0,1, escritura x1,25 (5 min) o x2 (1 h), salida x5. Así los porcentajes
+son de costo, no de cantidad. Los números para comparar antes y después del
+diseño de DISEÑO.md: contexto mediano por pedido, peso de los subagentes Opus,
+caché rehecha y contexto inicial.
+"""
+import argparse, collections, datetime, glob, json, os, re, shlex
+
+PESO = dict(inp=1, cw5=1.25, cw1h=2, cr=0.1, out=5)
+
+
+def uso(u):
+    cc = u.get("cache_creation") or {}
+    cw1, cw5 = cc.get("ephemeral_1h_input_tokens", 0), cc.get("ephemeral_5m_input_tokens", 0)
+    if not cc:
+        cw5 = u.get("cache_creation_input_tokens", 0)
+    return dict(inp=u.get("input_tokens", 0), cw5=cw5, cw1h=cw1, cr=u.get("cache_read_input_tokens", 0), out=u.get("output_tokens", 0))
+
+
+def ts(s):
+    try:
+        return datetime.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+    except (ValueError, AttributeError):
+        return None
+
+
+def pct(lista, q):
+    return lista[min(len(lista) - 1, int(len(lista) * q))] if lista else 0
+
+
+def comparar(raices, corte):
+    """Antes y después de `corte`, por la fecha en que ARRANCÓ cada sesión: una sesión
+    abierta antes del cambio sigue con la config vieja aunque siga en uso después."""
+    inicio_sesion = {}
+    for raiz in raices:
+        for p in glob.glob(raiz + "/*.jsonl"):
+            for linea in open(p, errors="ignore"):
+                t = ts(json.loads(linea).get("timestamp") or "") if '"timestamp"' in linea else None
+                if t:  # los transcripts guardan UTC: comparar en hora local
+                    inicio_sesion[os.path.basename(p)[:-6]] = datetime.datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M")
+                    break
+    g = {k: dict(peso=0.0, sub_opus=0.0, ctx=[], ini=[], reh=0.0, ses=set(), prompts=0) for k in ("antes", "después")}
+    vistos = set()
+    for raiz in raices:
+        for r, _, fs in os.walk(raiz):
+            for f in fs:
+                if not f.endswith(".jsonl"):
+                    continue
+                p = os.path.join(r, f); sub = r != raiz
+                sid = f[:-6] if not sub else os.path.relpath(p, raiz).split(os.sep)[0]
+                if sid not in inicio_sesion:
+                    continue
+                d_ = g["antes" if inicio_sesion[sid] < corte else "después"]
+                primero, t_prev = True, None
+                for linea in open(p, errors="ignore"):
+                    try:
+                        o = json.loads(linea)
+                    except ValueError:
+                        continue
+                    if not sub and o.get("type") == "user" and isinstance((o.get("message") or {}).get("content"), str):
+                        d_["prompts"] += 1
+                    m = o.get("message") or {}
+                    mid = m.get("id") or o.get("requestId")
+                    if o.get("type") != "assistant" or not mid or mid in vistos or m.get("model") == "<synthetic>":
+                        continue
+                    vistos.add(mid)
+                    u = uso(m.get("usage") or {}); x = sum(u[k] * PESO[k] for k in PESO)
+                    ctx = u["inp"] + u["cw5"] + u["cw1h"] + u["cr"]
+                    d_["peso"] += x; d_["ses"].add(sid)
+                    if sub:
+                        if "opus" in (m.get("model") or ""):
+                            d_["sub_opus"] += x
+                        continue
+                    d_["ctx"].append(ctx)
+                    if primero:
+                        d_["ini"].append(ctx); primero = False
+                    t = ts(o.get("timestamp") or "")
+                    if t and t_prev and t - t_prev > 3600 and ctx > 100e3 and u["cr"] < ctx / 2:
+                        d_["reh"] += x
+                    t_prev = t or t_prev
+    filas = [
+        ("sesiones", lambda d: f"{len(d['ses'])}"),
+        ("peso por prompt (M)", lambda d: f"{d['peso'] / max(d['prompts'], 1) / 1e6:.2f}"),
+        ("contexto mediano", lambda d: f"{pct(sorted(d['ctx']), .5) / 1e3:.0f}k"),
+        ("contexto p90", lambda d: f"{pct(sorted(d['ctx']), .9) / 1e3:.0f}k"),
+        ("contexto máximo", lambda d: f"{max(d['ctx'], default=0) / 1e3:.0f}k"),
+        ("contexto inicial (mediana)", lambda d: f"{pct(sorted(d['ini']), .5) / 1e3:.0f}k"),
+        ("subagentes Opus", lambda d: f"{100 * d['sub_opus'] / max(d['peso'], 1):.1f} %"),
+        ("caché rehecha tras >1 h", lambda d: f"{100 * d['reh'] / max(d['peso'], 1):.1f} %"),
+    ]
+    print(f"Sesiones que arrancaron antes y desde el {corte}\n")
+    print(f"   {'':28}{'antes':>10}{'después':>10}")
+    for nombre, fn in filas:
+        print(f"   {nombre:28}{fn(g['antes']):>10}{fn(g['después']) if g['después']['ctx'] else '—':>10}")
+    if len(g["después"]["ses"]) < 5:
+        print(f"\nTodavía hay {len(g['después']['ses'])} sesiones nuevas: con menos de ~5 la comparación no es confiable.")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("proyecto", nargs="?", default="", help="parte del nombre de la carpeta del proyecto")
+    ap.add_argument("--desde", default="", help="AAAA-MM-DD, incluido")
+    ap.add_argument("--hasta", default="9999", help="AAAA-MM-DD, incluido")
+    ap.add_argument("--comparar", metavar="'AAAA-MM-DD [HH:MM]'", help="antes y después de ese momento (hora local), por el arranque de cada sesión")
+    a = ap.parse_args()
+
+    base = os.path.expanduser("~/.claude/projects")
+    raices = [d for d in glob.glob(base + "/*") if a.proyecto in os.path.basename(d)]
+    if a.comparar:
+        comparar(raices, a.comparar)
+        return
+    vistos = set()
+    tot = collections.Counter()           # peso por tipo de token
+    lado = collections.Counter()          # peso por (lado, modelo)
+    ctx_main, inicio, sesiones = [], [], 0
+    rehecha = collections.Counter(); rehecha_n = collections.Counter()
+    corridas = collections.defaultdict(lambda: [0.0, 0, 0, 0])  # peso, corridas, pedidos, ctx máx
+    esfuerzo = collections.Counter()
+    herr = collections.Counter(); herr_n = collections.Counter(); bash = collections.Counter()
+
+    for raiz in raices:
+        for r, _, fs in os.walk(raiz):
+            for f in fs:
+                if not f.endswith(".jsonl"):
+                    continue
+                p = os.path.join(r, f)
+                sub = r != raiz
+                tipo, peso_arch, n, mx, primero, t_prev = None, 0.0, 0, 0, None, None
+                if sub:  # el tipo de subagente está en agent-<id>.meta.json, al lado
+                    try:
+                        tipo = json.load(open(p[:-6] + ".meta.json")).get("agentType")
+                    except (OSError, ValueError):
+                        pass
+                usos = {}
+                for linea in open(p, errors="ignore"):
+                    try:
+                        o = json.loads(linea)
+                    except ValueError:
+                        continue
+                    dia = (o.get("timestamp") or "")[:10]
+                    if dia and not (a.desde <= dia <= a.hasta):
+                        continue
+                    m = o.get("message") or {}
+                    cont = m.get("content") if isinstance(m.get("content"), list) else []
+                    if o.get("type") == "assistant":
+                        for b in cont:
+                            if b.get("type") == "tool_use":
+                                usos[b.get("id")] = (b.get("name"), (b.get("input") or {}).get("command", ""))
+                    elif o.get("type") == "user":
+                        for b in cont:
+                            if b.get("type") == "tool_result" and b.get("tool_use_id") in usos:
+                                nombre, comando = usos.pop(b["tool_use_id"])
+                                c = b.get("content")
+                                largo = len(c) if isinstance(c, str) else sum(len(x.get("text", "")) for x in c or [] if isinstance(x, dict))
+                                herr[nombre] += largo / 4; herr_n[nombre] += 1
+                                if nombre == "Bash" and comando:
+                                    cmd = re.sub(r"^(cd [^&;]+(&&|;)\s*)+", "", comando.strip())
+                                    try:
+                                        pal = shlex.split(cmd.split("\n")[0])
+                                    except ValueError:
+                                        pal = cmd.split()
+                                    pal = [w for w in pal if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w)]
+                                    while pal and pal[0] in (";", "&&"):
+                                        pal = pal[1:]
+                                    clave = " ".join(pal[:2]) if pal and pal[0] in ("git", "cargo", "npm", "docker") else (pal[0] if pal else "")
+                                    bash[clave] += largo / 4
+                    if o.get("type") != "assistant":
+                        continue
+                    mid = m.get("id") or o.get("requestId")
+                    if not mid or mid in vistos or m.get("model") == "<synthetic>":
+                        continue
+                    vistos.add(mid)
+                    d = uso(m.get("usage") or {})
+                    x = sum(d[k] * PESO[k] for k in PESO)
+                    ctx = d["inp"] + d["cw5"] + d["cw1h"] + d["cr"]
+                    for k in PESO:
+                        tot[k] += d[k] * PESO[k]
+                    modelo = re.sub(r"claude-|-\d+(-\d+)?$", "", m.get("model") or "?")
+                    lado[("subagente" if sub else "principal", modelo)] += x
+                    peso_arch += x; n += 1; mx = max(mx, ctx)
+                    tipo = tipo or o.get("agentType") or o.get("agentName")
+                    if sub:
+                        continue
+                    ctx_main.append(ctx)
+                    esfuerzo[str(o.get("effort"))] += x
+                    if primero is None:
+                        primero = ctx; inicio.append(ctx); sesiones += 1
+                    t = ts(o.get("timestamp") or "")
+                    if t and t_prev and ctx > 100e3 and d["cr"] < ctx / 2:
+                        pausa = t - t_prev
+                        k = "<5 min" if pausa < 300 else ("5-60 min" if pausa < 3600 else ">1 h")
+                        rehecha[k] += x; rehecha_n[k] += 1
+                    t_prev = t or t_prev
+                if sub and n and "/workflows/" not in p:
+                    c = corridas[(tipo or "general-purpose", modelo)]
+                    c[0] += peso_arch; c[1] += 1; c[2] += n; c[3] = max(c[3], mx)
+
+    total = sum(tot.values())
+    if not total:
+        print("No hay pedidos en ese rango."); return
+    main_w = sum(v for (l, _), v in lado.items() if l == "principal")
+    f = lambda v: f"{100 * v / total:5.1f} %"
+    print(f"Proyectos: {len(raices)} · sesiones: {sesiones} · peso total: {total / 1e6:.1f} M (equivalente a entrada sin caché)")
+    print("\n== Quién gasta")
+    for (l, mo), v in sorted(lado.items(), key=lambda kv: -kv[1]):
+        print(f"   {l:10} {mo:12} {f(v)}")
+    print("\n== En qué")
+    for k, nombre in [("cr", "leer caché"), ("cw1h", "escribir caché 1 h"), ("cw5", "escribir caché 5 min"), ("out", "salida"), ("inp", "entrada sin caché")]:
+        print(f"   {nombre:22} {f(tot[k])}")
+    ctx_main.sort(); inicio.sort()
+    print("\n== Contexto por pedido del hilo principal (miles de tokens)")
+    print(f"   p25 {pct(ctx_main, .25) / 1e3:.0f} · mediana {pct(ctx_main, .5) / 1e3:.0f} · p75 {pct(ctx_main, .75) / 1e3:.0f} · p90 {pct(ctx_main, .9) / 1e3:.0f} · máx {ctx_main[-1] / 1e3:.0f}")
+    print(f"   contexto inicial: mediana {pct(inicio, .5) / 1e3:.0f}k, mínimo {inicio[0] / 1e3:.0f}k")
+    print("\n== Caché rehecha (contexto >100k, menos de la mitad leído de caché), por pausa previa")
+    for k in ("<5 min", "5-60 min", ">1 h"):
+        if rehecha_n[k]:
+            print(f"   {k:9} {rehecha_n[k]:4} pedidos  {100 * rehecha[k] / main_w:5.1f} % del hilo principal")
+    print("\n== Subagentes por tipo")
+    for (tp, mo), (v, c, n, mx) in sorted(corridas.items(), key=lambda kv: -kv[1][0])[:10]:
+        print(f"   {str(tp)[:24]:24} {mo:10} {c:3} corridas {f(v)}  {n / c:5.0f} pedidos/corrida  ctx máx {mx / 1e3:4.0f}k")
+    print("\n== Peso del hilo principal por esfuerzo")
+    print("   " + " · ".join(f"{k} {100 * v / main_w:.0f} %" for k, v in esfuerzo.most_common()))
+    ht = sum(herr.values()) or 1
+    print(f"\n== Salida de herramientas (≈{ht / 1e6:.2f} M tokens, estimado por caracteres)")
+    for k, v in herr.most_common(6):
+        print(f"   {k:18} {100 * v / ht:5.1f} %  {herr_n[k]:5} llamadas")
+    print("   Bash por comando: " + " · ".join(f"{k} {100 * v / ht:.0f} %" for k, v in bash.most_common(6)))
+
+
+if __name__ == "__main__":
+    main()

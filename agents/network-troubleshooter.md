@@ -4,6 +4,8 @@ description: Diagnoses network connectivity, routing, DNS, interface, and policy
 tools: Read, Bash, Grep
 model: sonnet
 effort: medium
+maxTurns: 60
+autoCompactWindow: 150000
 ---
 
 ## Prompt Defense Baseline
